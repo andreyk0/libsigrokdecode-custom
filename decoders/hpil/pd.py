@@ -2,18 +2,18 @@ import sigrokdecode as srd
 import math
 from functools import reduce
 
-"""
-Decodes HP-IL pulses.
-
-https://www.hpl.hp.com/hpjournal/pdfs/IssuePDFs/1983-01.pdf
-
-Input hpil0,hpil1 signals are assumed to be inverted
-(2 LM393 comparators in the inverting configuration, i.e. "inactive high",
-instead of the shmiddt triggers in the orginal circuit)
-and represent >0 and <0 parts of a single pulse.
-"""
-
 class Decoder(srd.Decoder):
+    """
+    Decodes HP-IL pulses.
+
+    https://www.hpl.hp.com/hpjournal/pdfs/IssuePDFs/1983-01.pdf
+
+    Input hpil0,hpil1 signals are assumed to be inverted
+    (2 LM393 comparators in the inverting configuration, i.e. "inactive high",
+    instead of the shmiddt triggers in the orginal circuit)
+    and represent >0 and <0 parts of a single pulse.
+    """
+
     api_version = 3
     id = 'hpil'
     name = 'HP-IL'
