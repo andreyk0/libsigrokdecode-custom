@@ -35,10 +35,12 @@ class Decoder(srd.Decoder):
     annotations = (
         ('bits', 'EOX 9906 bits'),
         ('fields', 'EOX 9906 bit fields'),
+        ('decoded', 'EOX 9906 decoded values'),
     )
     annotation_rows = (
         ('bits', 'Bits', (0,)),
         ('bit_fields', 'Bit fields', (1,)),
+        ('decoded', 'Decoded', (2,)),
     )
 
     def __init__(self, **kwargs):
@@ -47,7 +49,6 @@ class Decoder(srd.Decoder):
     def metadata(self, key, value):
         if key == srd.SRD_CONF_SAMPLERATE:
             self.samplerate = value
-            print(f"Sample rate: {self.samplerate}")
 
     def start(self):
         self.out_ann = self.register(srd.OUTPUT_ANN)
@@ -78,11 +79,36 @@ class Decoder(srd.Decoder):
             self.reset()
 
     def decode_data(self):
-        ps = self.decode_byte()
-        while ps:
-          ps = self.decode_byte()
+        b0 = self.decode_byte()
+        b1 = self.decode_byte()
+        b2 = self.decode_byte()
+        b3 = self.decode_byte()
+
+        if b0 and b1 and b2 and b3:
+            self.decode_payload(b0, b1, b2, b3)
 
         self.reset()
+
+    def decode_payload(self, b0i, b1i, b2i, b3i):
+        (b0, b0s, b0e) = b0i
+        (b1, b1s, b1e) = b1i
+        (b2, b2s, b2e) = b2i
+        (b3, b3s, b3e) = b3i
+
+        ch = b0 & 0b11
+        bat_ok = b0 & 0b1000
+        bat_str = "low"
+        if bat_ok:
+            bat_str = "ok"
+
+        self.put(b0s, b0e, self.out_ann, [2, [f"ch{ch} bat{bat_str}"]])
+
+        t = float(((b1 & 0xF) << 4) | ((b2 >> 4) & 0xF)) / 10.0
+        self.put(b1s, b2e, self.out_ann, [2, [f"T{t}C"]])
+
+        rh = b3
+        self.put(b3s, b3e, self.out_ann, [2, [f"RH{rh}%"]])
+
 
     def decode_byte(self):
         ps = self.require_n_pulses(8)
@@ -135,8 +161,6 @@ class Decoder(srd.Decoder):
             return None
 
         pause_millis = self.duration_millis(fall, end_of_pause)
-
-        print(f"{on_pulse_millis} / {pause_millis}")
 
         # expect either short or a long pause
         if math.fabs(pause_millis - 2.0) < 0.2:
